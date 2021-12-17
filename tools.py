@@ -3,7 +3,6 @@ from common import load_tractogram, load_bundle, get_bundle_idxs
 
 
 from load_trk_numba import load_streamlines
-# from wasserthal_2018_common import subject_ids, bundle_strings, tractogram_pathname, bundle_pathname, bundle_indices_pathname
 from dipy.tracking.streamline import set_number_of_points
 from dipy.tracking.vox2track import streamline_mapping
 from dipy.tracking.utils import subsegment, length
