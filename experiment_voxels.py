@@ -1,5 +1,5 @@
 import numpy as np
-from common import load_peaks, get_bundle_mask
+from tools import load_peaks, get_bundle_mask
 import nibabel as nib
 from scipy.spatial import KDTree
 from time import time
