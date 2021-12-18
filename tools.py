@@ -1,133 +1,244 @@
+"""Common functions useful for multiple applications.
+"""
+
 import numpy as np
-from common import load_tractogram, load_bundle, get_bundle_idxs
+from load_trk_numba import load_streamlines
+from scipy.io import loadmat
+from benchmark_bundle_segmentation_dataset import get_peaks_pathname as get_peaks_pathname_bbs
+from benchmark_bundle_segmentation_dataset import get_tractogram_pathname as get_tractogram_pathname_bbs
+from benchmark_bundle_segmentation_dataset import get_wmc_pathname as get_wmc_pathname_bbs
+from benchmark_minor_bundle_segmentation_dataset import get_peaks_pathname as get_peaks_pathname_bmbs
+from benchmark_minor_bundle_segmentation_dataset import get_tractogram_pathname as get_tractogram_pathname_bmbs
+from benchmark_minor_bundle_segmentation_dataset import get_wmc_pathname as get_wmc_pathname_bmbs
+import nibabel as nib
 from dipy.tracking.streamline import set_number_of_points
+from dipy.tracking.vox2track import streamline_mapping
+from dipy.tracking.utils import subsegment, length
+import zlib
+from io import BytesIO
 
 
-def load_target(dataset, target_subject_id, bundle_string, nb_points=32, apply_affine=True, verbose=True):
-    """This function loads the desired tractogram and bundle, resample to
-    the desired number of point and apply the affine if requested.
+tractogram_cache = {}
+
+bundle_mask_cache = {}
+
+
+def get_peaks_pathname(dataset, subject_id):
+    """Reroute the call to the related dataset-specific function.
     """
-    target_tractogram, header, lengths, idxs = load_tractogram(dataset, target_subject_id, bundle_string, verbose=verbose, container='list')
-    print(f"{len(target_tractogram)} streamlines")
-    print(f"Resampling all streamlines to {nb_points} points.")
-    target_tractogram = np.array(set_number_of_points(target_tractogram, nb_points=nb_points))
-    target_affine = header['voxel_to_rasmm']
-    target_volume_size = header['dimensions']
+    if dataset == 'Benchmark_Bundle_Segmentation':
+        return get_peaks_pathname_bbs(subject_id)
+    elif dataset == 'Benchmark_Minor_Bundle_Segmentation':
+        return get_peaks_pathname_bmbs(subject_id)
+    else:
+        print(dataset)
+        raise NotImplementedError
 
-    print("Loading indices of the true target bundle")
-    target_bundle_indices_true = get_bundle_idxs(dataset, target_subject_id, bundle_string, verbose=verbose)
-    target_bundle_true = target_tractogram[target_bundle_indices_true]
-    print(f"{len(target_bundle_indices_true)} streamlines")
-    return target_tractogram, target_bundle_indices_true, target_bundle_true, target_affine, target_volume_size
-    
-    
-def load_example_bundle(dataset, example_subject_id, bundle_string, nb_points=32, apply_affine=True, verbose=True):
-    """This function loads the desired bundle, resample to the desired
-    number of point and apply the affine if requested.
+
+def get_tractogram_pathname(dataset, subject_id, bundle_string=None):
+    """Reroute the call to the related dataset-specific function.
     """
-    example_bundle, header, lengths, idxs = load_bundle(dataset,
-                                                        example_subject_id,
-                                                        bundle_string,
-                                                        apply_affine=apply_affine,
-                                                        container='list',
-                                                        verbose=verbose)
-    example_affine = header['voxel_to_rasmm']
-    example_volume_size = header['dimensions']
-    print(f"{len(example_bundle)} streamlines")
-    print(f"Resampling all streamlines to {nb_points} points.")
-    example_bundle = np.array(set_number_of_points(example_bundle, nb_points=nb_points))
-    return example_bundle, example_affine, example_volume_size
+    if dataset == 'Benchmark_Bundle_Segmentation':
+        return get_tractogram_pathname_bbs(subject_id, bundle_string)
+    elif dataset == 'Benchmark_Minor_Bundle_Segmentation':
+        return get_tractogram_pathname_bmbs(subject_id)
+    else:
+        print(dataset)
+        raise NotImplementedError
+
+
+def get_wmc_pathname(dataset, subject_id, bundle_string):
+    """Reroute the call to the related dataset-specific function.
+    """
+    if dataset == 'Benchmark_Bundle_Segmentation':
+        return get_wmc_pathname_bbs(subject_id, bundle_string)
+    elif dataset == 'Benchmark_Minor_Bundle_Segmentation':
+        return get_wmc_pathname_bmbs(subject_id, bundle_string)
+    else:
+        raise NotImplementedError
+
+
+def get_labels_names(wmc_pathname, verbose=False):
+    """From the given WMC pathname, extract bundle-labels for each
+    streamline and the list of bundle_strings in the same order of the
+    bundle-labels.
+
+    Note: the WMC (White Matter Classification) file is a simple
+    matlab file choose by Brainlife as a standard for
+    streamline-related information.
+
+    """
+    if verbose:
+        print(f"Loading {wmc_pathname}")
+
+    data = loadmat(wmc_pathname)
+    tmp = data['classification'][0][0]
+    bundle_names = [bn[0] for bn in tmp[0][0]]
+    if verbose:
+        print(f"{len(bundle_names)} bundle_names")
+
+    streamline_labels = tmp[1].squeeze()
+    return streamline_labels, bundle_names
+
+
+def get_bundle_idxs(dataset, subject_id, bundle_string, verbose=False):
+    wmc_pathname = get_wmc_pathname(dataset, subject_id, bundle_string)
+    streamline_labels, bundle_names = get_labels_names(wmc_pathname, verbose=verbose)
+    bundle_label = bundle_names.index(bundle_string) + 1  # +1 because label '0' means 'no bundle'
+    idxs = np.where(streamline_labels == bundle_label)[0]
+    return idxs
+
+
+def load_bundle(dataset, subject_id, bundle_string, apply_affine=True,
+                container='array', verbose=False):
+    """Load the desired bundle by extracting the specific streamlines from
+    the related tractogram. The correct streamlines IDs are obtained
+    from the related WMC file.
+    """
+    if verbose:
+        print(f"Loading {bundle_string}")
+
+    idxs = get_bundle_idxs(dataset, subject_id, bundle_string, verbose=verbose)
+    if verbose:
+        print(f"Loading {len(idxs)} streamlines")
+    tractogram_pathname = get_tractogram_pathname(dataset, subject_id, bundle_string)
+    streamlines, header, lengths, idxs = load_streamlines(tractogram_pathname,
+                                                          idxs,
+                                                          apply_affine=apply_affine,
+                                                          container=container,
+                                                          verbose=verbose)
+    if verbose:
+        print(f"Loaded {len(streamlines)} streamlines")
+
+    return streamlines, header, lengths, idxs
+
+
+def load_tractogram(dataset, subject_id, bundle_string,
+                    apply_affine=True, container='array', verbose=False):
+    """Load tractogram keeping the last one in cache.
+    """
+    global tractogram_cache
+    tractogram_pathname = get_tractogram_pathname(dataset, subject_id, bundle_string)
+    if tractogram_pathname in tractogram_cache.keys():
+        print(f"{tractogram_pathname} in cache")
+        print("Retrieving tractogram from cache!")
+        streamlines, header, lengths, idxs = tractogram_cache[tractogram_pathname]
+    else:
+        streamlines, header, lengths, idxs = load_streamlines(tractogram_pathname,
+                                                              idxs=None,
+                                                              apply_affine=apply_affine,
+                                                              container=container,
+                                                              verbose=verbose)
+        # We store just the last tractogram:
+        tractogram_cache = {tractogram_pathname: (streamlines, header, lengths, idxs)}
+
+    if verbose:
+        print(f"Loaded {len(streamlines)} streamlines")
+
+    return streamlines, header, lengths, idxs
+
+
+def load_peaks(dataset, subject_id, alpha=1.0):
+    peaks_filename = get_peaks_pathname(dataset, subject_id)
+    print(f"Loading {peaks_filename}")
+    peaks = nib.Nifti1Image.load(peaks_filename)
+    peaks_vol = peaks.get_fdata() * alpha
+    return peaks, peaks_vol
+
+
+def streamlines2mask(streamlines, affine, volume_size, voxel_step=1/10.0):
+    """Transform streamlines into the corresponding voxel mask.
+    """
+    if type(volume_size) is str and volume_size=='':
+        print("WARNING: Missing volume size in header. Using default volume size from HCP data: (145, 174, 145)")
+        volume_size = (145, 174, 145)
+
+    mask = np.zeros(volume_size, dtype=np.float32)
+
+    voxel_size = np.abs(affine.diagonal())[:3][0]
+    max_segment_length = voxel_size * voxel_step
+    # slower:
+    # streamlines_denser = list(subsegment(streamlines, max_segment_length))
+    # a bit faster:
+    nb_points = (np.array(list(length(streamlines))) / max_segment_length).astype(int)
+    streamlines_denser = [set_number_of_points(streamlines[i], nb_points[i]) for i in range(len(streamlines))]
+
+    voxels_indices = list(streamline_mapping(streamlines_denser, affine).keys())
+    for vi in voxels_indices:
+        mask[vi] = 1.0
+
+    return mask
+
+
+def get_bundle_mask(dataset, subject_id, bundle_string, voxel_step=1/10):
+    """Compute the bundle mask for the required bundle from the
+    streamlines. Store the mask (compressed) in a cache for future
+    use.
+
+    Note: compression should help a lot in the case of the binary mask
+    of a bundle, reaching 99% compression. Thousands of bundle masks
+    can be cached in less than 100Mb of RAM. For this reason, the
+    cache has no check on how many compress bundle masks it stores.
+
+    """
+    global bundle_mask_cache
+    key = (dataset, subject_id, bundle_string, voxel_step)
+    if key in bundle_mask_cache.keys():
+        print(f"Retrieving mask from cache with key {key}")
+        tmp = bundle_mask_cache[key]
+        tmp.seek(0)  # This is necessary for the BytesIO container
+        return np.load(tmp)['mask']
+    else:
+        streamlines, header, lengths, idxs = load_bundle(dataset, subject_id, bundle_string, apply_affine=True, verbose=True)
+        affine = header['voxel_to_rasmm']
+        volume_size = header['dimensions']
+        mask = streamlines2mask(streamlines, affine, volume_size, voxel_step=voxel_step)
+        print(f"Storing mask in cache with key {key}")
+        tmp = BytesIO()
+        np.savez_compressed(tmp, mask=mask)
+        bundle_mask_cache[key] = tmp
+        return mask
 
 
 if __name__=='__main__':
 
-    from load_trk_numba import load_streamlines
-    import pickle
-    import pandas as pd
+    from benchmark_bundle_segmentation_dataset import bundle_strings, dataset
     from time import time
 
-    nb_points = 32
-    voxel_step = 1/10.0
+    subject_id = 599469
+    bundle_strings = ['IFO_left', 'AF_right']
     verbose = True
-    results_filename = 'results_1NN.csv'
-    
-    target_subject_id = subject_ids[0]
-    example_subject_id = subject_ids[1]
-    bundle_string = "CST_left" # bundle_strings[0]
+    voxel_step = 1/10
 
-    try:
-        results = pd.read_csv(results_filename)
-        print("Resuming results:")
-        print(results)
-    except:
-        print('Starting a new table of results.')
-        results = pd.DataFrame(columns=['target_subject_id', 'example_subject_id', 'bundle_string', 'DSC_streamlines', 'DSC_voxels'])
-    
-    for target_subject_id in subject_ids:
-        target_tractogram_pathname = tractogram_pathname(target_subject_id, bundle_string)
-        target_bundle_indices_pathname = bundle_indices_pathname(target_subject_id, bundle_string)
-        print("Loading target tractogram")
-        target_tractogram, header, lengths, idxs = load_streamlines(target_tractogram_pathname,
-                                                                    apply_affine=True,
-                                                                    container='list',
-                                                                    verbose=verbose)
-        target_affine = header['voxel_to_rasmm']
-        target_volume_size = header['dimensions']
-        print(f"{len(target_tractogram)} streamlines")
-        print(f"Resampling all streamlines to {nb_points} points.")
-        target_tractogram = np.array(set_number_of_points(target_tractogram, nb_points=nb_points))
+    for i, bundle_string in enumerate(bundle_strings):
+        print(i, bundle_string)
+        t0 = time()
+        streamlines, header, lengths, idxs = load_bundle(dataset, subject_id, bundle_string, verbose=verbose)
+        print(f"Total time: {time() - t0} sec.")
+        print("")
 
-        print("Loading indices of the true target bundle")
-        print(target_bundle_indices_pathname)
-        target_bundle_indices_true = np.load(target_bundle_indices_pathname)
-        target_bundle_true = target_tractogram[target_bundle_indices_true]
-        print(f"{len(target_bundle_indices_true)} streamlines")
+    t0 = time()
+    streamlines, header, lengths, idxs = load_tractogram(dataset, subject_id, bundle_string, verbose=verbose)
+    print(f"Total time: {time() - t0} sec.")
 
-        for example_subject_id in subject_ids:
-            row = results[(results['target_subject_id']==target_subject_id) & (results['example_subject_id']==example_subject_id) & (results['bundle_string']==bundle_string)]
-            if len(row) > 0:
-                print(row)
-                continue
-            
-            example_bundle_pathname = bundle_pathname(example_subject_id, bundle_string)
+    print("")
+    t0 = time()
+    streamlines, header, lengths, idxs = load_tractogram(dataset, subject_id, bundle_string, verbose=verbose)
+    print(f"Total time: {time() - t0} sec.")
 
-            print("")
-            print("Loading example bundle")
-            example_bundle, header, lengths, idxs = load_streamlines(example_bundle_pathname,
-                                                                     apply_affine=True,
-                                                                     container='list',
-                                                                     verbose=verbose)
-            example_affine = header['voxel_to_rasmm']
-            example_volume_size = header['dimensions']
-            print("Checking that example and target are compatible.")  # todo: AC-PC registration is not great, we need MNI registration.
-            assert((example_affine == target_affine).all())
-            assert((example_volume_size == target_volume_size).all())
-            print(f"{len(example_bundle)} streamlines")
-            print(f"Resampling all streamlines to {nb_points} points.")
-            example_bundle = np.array(set_number_of_points(example_bundle, nb_points=nb_points))
+    print("")
+    t0 = time()
+    peaks, peaks_vol = load_peaks(dataset, subject_id, alpha=1.0)
+    print(f"Total time: {time() - t0} sec.")
 
-            print("")
-            print("Computing the predicted bundle with 1-NN")
-            t0 = time()
-            distances, target_bundle_indices_predicted = nearest_neighbor(example_bundle, target_tractogram, verbose=verbose)
-            print(f"{time()-t0} sec.")
+    print("")
+    t0 = time()
+    mask = get_bundle_mask(dataset, subject_id, bundle_string, voxel_step=voxel_step)
+    print(f"Total time: {time() - t0} sec.")
 
-            print("Scores: dice similarity coefficient")
-            print("See: https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient")
-            dsc_streamlines = 2 * np.intersect1d(target_bundle_indices_true, target_bundle_indices_predicted).size / (target_bundle_indices_true.size + target_bundle_indices_predicted.size)
-            print(f"DSC_streamlines = {dsc_streamlines}")
+    print("")
+    t0 = time()
+    mask2 = get_bundle_mask(dataset, subject_id, bundle_string, voxel_step=voxel_step)
+    print(f"Total time: {time() - t0} sec.")
 
-            target_bundle_predicted = target_tractogram[target_bundle_indices_predicted]
-            target_bundle_predicted_voxel_mask = streamlines2mask(target_bundle_predicted, target_affine, target_volume_size)
-            target_bundle_true_voxel_mask = streamlines2mask(target_bundle_true, target_affine, target_volume_size)
-            dsc_voxels = 2 * (target_bundle_predicted_voxel_mask * target_bundle_true_voxel_mask).sum() / (target_bundle_predicted_voxel_mask.sum() + target_bundle_true_voxel_mask.sum())
-            print(f"DSC_voxels = {dsc_voxels}")
-
-            target_bundle_predicted_filename = 'target_%s_example_%s_%s_1NN.pickle' % (target_subject_id, example_subject_id, bundle_string)
-            print('Saving %s' % target_bundle_predicted_filename)
-            pickle.dump(target_bundle_predicted, open('predicted_bundles/' + target_bundle_predicted_filename, 'wb'))
-
-            results = results.append({'target_subject_id': target_subject_id, 'example_subject_id': example_subject_id, 'bundle_string':bundle_string, 'DSC_streamlines':dsc_streamlines, 'DSC_voxels':dsc_voxels}, ignore_index=True)
-            results.to_csv(results_filename, index=False)
-            
-            print("")
+    assert((mask == mask2).all())
