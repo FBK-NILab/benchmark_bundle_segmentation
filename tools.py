@@ -200,6 +200,42 @@ def get_bundle_mask(dataset, subject_id, bundle_string, voxel_step=1/10):
         return mask
 
 
+def load_target(dataset, target_subject_id, bundle_string, nb_points=32, apply_affine=True, verbose=True):
+    """This function loads the desired tractogram and bundle, resample to
+    the desired number of point and apply the affine if requested.
+    """
+    target_tractogram, header, lengths, idxs = load_tractogram(dataset, target_subject_id, bundle_string, verbose=verbose, container='list')
+    print(f"{len(target_tractogram)} streamlines")
+    print(f"Resampling all streamlines to {nb_points} points.")
+    target_tractogram = np.array(set_number_of_points(target_tractogram, nb_points=nb_points))
+    target_affine = header['voxel_to_rasmm']
+    target_volume_size = header['dimensions']
+
+    print("Loading indices of the true target bundle")
+    target_bundle_indices_true = get_bundle_idxs(dataset, target_subject_id, bundle_string, verbose=verbose)
+    target_bundle_true = target_tractogram[target_bundle_indices_true]
+    print(f"{len(target_bundle_indices_true)} streamlines")
+    return target_tractogram, target_bundle_indices_true, target_bundle_true, target_affine, target_volume_size
+
+
+def load_example_bundle(dataset, example_subject_id, bundle_string, nb_points=32, apply_affine=True, verbose=True):
+    """This function loads the desired bundle, resample to the desired
+    number of point and apply the affine if requested.
+    """
+    example_bundle, header, lengths, idxs = load_bundle(dataset,
+                                                        example_subject_id,
+                                                        bundle_string,
+                                                        apply_affine=apply_affine,
+                                                        container='list',
+                                                        verbose=verbose)
+    example_affine = header['voxel_to_rasmm']
+    example_volume_size = header['dimensions']
+    print(f"{len(example_bundle)} streamlines")
+    print(f"Resampling all streamlines to {nb_points} points.")
+    example_bundle = np.array(set_number_of_points(example_bundle, nb_points=nb_points))
+    return example_bundle, example_affine, example_volume_size
+
+
 if __name__=='__main__':
 
     from benchmark_bundle_segmentation_dataset import bundle_strings, dataset
