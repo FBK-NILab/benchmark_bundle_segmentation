@@ -61,14 +61,13 @@ if __name__=='__main__':
     for target_subject_id in target_subject_ids:
         
         target_peaks, target_peaks_vol = load_peaks(dataset, target_subject_id, alpha=1.0)
+
         print("Preparing data for 1NN: transforming volumes to vectors")
-        
         ijk = np.where((~np.isnan(target_peaks_vol)).any(axis=3))
         tmp = target_peaks_vol[ijk]
         tmp = np.nan_to_num(tmp, 0.0)  # set the remaining nan to 0.0 (Pietro says mrtrix put some nans for very low values)
         X_target =  np.hstack([np.array(ijk).T, tmp])
         print(f"X_target: {X_target.shape}")
-        # print(f"X_target.max(0): {X_target.max(0)}")
 
         for bundle_string in bundle_strings:
             print(f"Segmenting {bundle_string}")
