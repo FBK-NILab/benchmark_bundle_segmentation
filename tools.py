@@ -1,40 +1,6 @@
 import numpy as np
 from common import load_tractogram, load_bundle, get_bundle_idxs
-
-
-from load_trk_numba import load_streamlines
 from dipy.tracking.streamline import set_number_of_points
-from dipy.tracking.vox2track import streamline_mapping
-from dipy.tracking.utils import subsegment, length
-from scipy.spatial import KDTree
-import pickle
-import pandas as pd
-from time import time
-
-
-
-def streamlines2mask(streamlines, affine, volume_size, voxel_step=1/10.0):
-    """Transform streamlines into the corresponding voxel mask.
-    """
-    if type(volume_size) is str and volume_size=='':
-        print("WARNING: Missing volume size in header. Using default volume size from HCP data: (145, 174, 145)")
-        volume_size = (145, 174, 145)
-
-    mask = np.zeros(volume_size, dtype=np.float32)
-
-    voxel_size = np.abs(affine.diagonal())[:3][0]
-    max_segment_length = voxel_size * voxel_step
-    # slower:
-    # streamlines_denser = list(subsegment(streamlines, max_segment_length))
-    # a bit faster:
-    nb_points = (np.array(list(length(streamlines))) / max_segment_length).astype(int)
-    streamlines_denser = [set_number_of_points(streamlines[i], nb_points[i]) for i in range(len(streamlines))]
-
-    voxels_indices = list(streamline_mapping(streamlines_denser, affine).keys())
-    for vi in voxels_indices:
-        mask[vi] = 1.0
-
-    return mask
 
 
 def load_target(dataset, target_subject_id, bundle_string, nb_points=32, apply_affine=True, verbose=True):
@@ -71,10 +37,14 @@ def load_example_bundle(dataset, example_subject_id, bundle_string, nb_points=32
     print(f"Resampling all streamlines to {nb_points} points.")
     example_bundle = np.array(set_number_of_points(example_bundle, nb_points=nb_points))
     return example_bundle, example_affine, example_volume_size
-    
+
 
 if __name__=='__main__':
 
+    from load_trk_numba import load_streamlines
+    import pickle
+    import pandas as pd
+    from time import time
 
     nb_points = 32
     voxel_step = 1/10.0

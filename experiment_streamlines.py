@@ -11,7 +11,7 @@ import pandas as pd
 from copy import copy
 import pickle
 from random import sample, seed
-from nearest_neighbor import nearest_neighbor
+from nearest_neighbor_streamlines import nearest_neighbor
 from os import mkdir
 from os.path import isdir
 
@@ -79,7 +79,7 @@ if __name__=='__main__':
     from benchmark_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
     # from benchmark_minor_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
 
-    print(f"Experiments segmenting bundles from the {dataset} dataset.")
+    print(f"Experiments segmenting bundles from the {dataset} dataset using streamlines.")
 
     print(f"Creating directory {dataset} if not existing, to store results")
     if not isdir(dataset): mkdir(dataset)
@@ -99,7 +99,7 @@ if __name__=='__main__':
     voxel_step = 1/10.0  # step size used to convert streamlines to voxels. Lower is better but more expensive.
     apply_affine = True  # Use affine available in tractograms.
 
-    predicted_dir = f'{dataset}/predicted_bundles_train_{num_examples}/'
+    predicted_dir = f'{dataset}/predicted_bundles_train_{num_examples}_streamlines/'
     if not isdir(predicted_dir): mkdir(predicted_dir)
     print(f"Saving all predicted bundles in {predicted_dir}")
 
