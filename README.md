@@ -1,2 +1,6 @@
 # benchmark_bundle_segmentation
 Code for benchmarking automatic bundle segmentation methods.
+
+1. Download data from [brainlife.io](https://brainlife.io). The two datasets addressed so fare are the [Benchmark Bundle Segmentation Dataset](https://doi.org/10.25663/brainlife.pub.29) and the [Benchmark Minor Bundle Segmentation Dataset](https://doi.org/10.25663/brainlife.pub.28). You can download even just a portion of the datasets, i.e. just a few subjects, as long as you download all files associated to each subject (TRK, peaks, WMC). In the end, you need a directory (or link to) `proj-605b72b0edebf063f4d274c4` for the first dataset and `proj-6058cd229feaae29c59d8aee` for the second one.
+2. Execute `experiment_voxels.py` or `experiment_streamlines.py` to run the two baselines methods. In the first lines of the `__main__` section, it is indicated on which of the two datasets the baselines are run. The required packages to be install to run the experiments are listed in `requirements.txt`.
+3. Execute `summary_of_results.py` in order to obtain a short summary of the performance of the two methods on the two datasets with mean and standard deviation of the Dice Similarity Coefficient (DSC) on the predicted vs. expert-curated voxel masks of white matter bunldes.
