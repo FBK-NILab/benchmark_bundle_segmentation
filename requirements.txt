@@ -1,0 +1,7 @@
+numpy
+scipy
+pandas
+nibabel
+dipy
+scikit-learn
+numba
