@@ -15,8 +15,9 @@ from os.path import isdir
 if __name__=='__main__':
     seed(0)
 
-    from benchmark_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
-    # from benchmark_minor_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
+    # Choose on of the two import statements to execute the experiment on the desired dataset:
+    # from benchmark_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
+    from benchmark_minor_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
 
     print(f"Experiments segmenting bundles from the {dataset} dataset using voxels.")
 

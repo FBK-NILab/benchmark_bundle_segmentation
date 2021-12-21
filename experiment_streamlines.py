@@ -76,8 +76,8 @@ def segment_bundle(dataset, target_subject_id, bundle_string, subject_ids, nb_po
 if __name__=='__main__':
     seed(0)
 
-    from benchmark_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
-    # from benchmark_minor_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
+    # from benchmark_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
+    from benchmark_minor_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
 
     print(f"Experiments segmenting bundles from the {dataset} dataset using streamlines.")
 
