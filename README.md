@@ -1,8 +1,12 @@
 # benchmark_bundle_segmentation
 Code for benchmarking automatic bundle segmentation methods.
 
+The code is tested on Python 3.9 and requires `numpy`, `scipy`, `pandas`, `nibabel`, `dipy`, `scikit-learn`, and `numba`. There are no strong requirements for specific versions for those packges. Reasonably updated versions as available through main distribution channels (conda, pip, neurodebian, etc.) are expected to work.
+
+Instructions:
+
 1. Download data from [`brainlife.io`](https://brainlife.io). The two datasets addressed so far are the [Benchmark Bundle Segmentation Dataset](https://doi.org/10.25663/brainlife.pub.29) and the [Benchmark Minor Bundle Segmentation Dataset](https://doi.org/10.25663/brainlife.pub.28). You can download even just a portion of the datasets, i.e. just a few subjects, as long as you download all files associated to each subject (TRK, peaks, WMC). In the end, you need a directory (or link to) `proj-605b72b0edebf063f4d274c4` for the first dataset and `proj-6058cd229feaae29c59d8aee` for the second one.
-2. Execute `experiment_voxels.py` or `experiment_streamlines.py` to run the two baselines methods. In the first lines of the `__main__` section, it is indicated on which of the two datasets the baselines are run. The required packages to be installed to run the experiments are listed in `requirements.txt`.
+2. Execute `experiment_voxels.py` or `experiment_streamlines.py` to run the two baselines methods. In the first lines of the `__main__` section, it is indicated on which of the two datasets the baselines are run, through an import statement.
 3. Execute `summary_of_results.py` in order to obtain a short summary of the performance of the two methods on the two datasets with mean and standard deviation of the Dice Similarity Coefficient (DSC) on the predicted vs. expert-curated voxel masks of white matter bunldes. The summary output is in three formats: `.txt`, `.csv`, `.tex`.
 
 ## Download data from `brainlife.io`
@@ -17,4 +21,20 @@ to use the [Benchmark Bundle Segmentation Dataset](https://doi.org/10.25663/brai
 ```
 from benchmark_bundle_segmentation_dataset import dataset, get_available_subjects, bundle_strings
 ```
-to use the [Benchmark Minor Bundle Segmentation Dataset](https://doi.org/10.25663/brainlife.pub.28). Some parameters can be set in each experiment file, such as the number of subjects for the training set (`num_examples`), or the number of point for resampling streamlines (`nb_points`).
+to use the [Benchmark Minor Bundle Segmentation Dataset](https://doi.org/10.25663/brainlife.pub.28). Some parameters can be set in each experiment file, such as the number of subjects for the training set (`num_examples`), or the number of point for resampling streamlines (`nb_points`). The execution can be interruputed at any time; later, it can be resumed at the point of interruption simply re-running experiment_voxels.py` or experiment_streamlines.py`.
+
+## Summary of the Results
+Execute `summary_of_results.py` at any time to obtain a summary of the (ongoing or final) results, such as the following one:
+```
+               DSC_voxels          
+                     mean       std
+bundle_string                      
+Left_MdLF-Ang    0.721781  0.056787
+Right_pArc       0.712391  0.054477
+Left_pArc        0.688065  0.085071
+Right_MdLF-Ang   0.680687  0.059976
+Left_MdLF-SPL    0.640233  0.082060
+Right_TPC        0.635377  0.083544
+Left_TPC         0.630241  0.082393
+Right_MdLF-SPL   0.610408  0.066377
+```
